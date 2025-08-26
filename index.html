@@ -1,284 +1,259 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weekly Schedule</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        @media print {
-            body {
-                -webkit-print-color-adjust: exact; /* Chrome, Safari */
-                color-adjust: exact; /* Firefox */
-            }
-            .no-print {
-                display: none;
-            }
-            .printable-content {
-                box-shadow: none;
-                margin: 0;
-                padding: 0;
-            }
-        }
-        .activity {
-            padding: 8px;
-            border-radius: 6px;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Weekly Schedule — Hourly Grid</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --bg: #f8fafc;
+    --card:#ffffff;
+    --muted:#6b7280;
+    --pastel-blue: #e7f5ff;
+    --pastel-green:#eafcf0;
+    --pastel-pink:#fff0f6;
+    --pastel-yellow:#fff9e6;
+    --pastel-lavender:#f3eaff;
+    --hour-height:64px; /* bigger interval for readability */
+  }
+
+  body{ background:var(--bg); font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; }
+  .board { max-width:1200px; margin:28px auto; padding:20px; background:var(--card); border-radius:12px; box-shadow:0 6px 20px rgba(15,23,42,0.06); }
+  .grid-wrap { overflow:auto; }
+  .schedule-grid {
+    display:grid;
+    grid-template-columns: 120px repeat(7, minmax(140px, 1fr));
+    grid-template-rows: 56px repeat(17, var(--hour-height)); /* header + 17 hourly rows (07:00–00:00) */
+    gap:6px;
+    align-items:stretch;
+  }
+  .cell {
+    border-radius:8px;
+    padding:8px;
+    font-size:13px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+  }
+  .time-cell { color:var(--muted); font-weight:600; background:transparent; justify-content:flex-start; padding-left:12px; }
+  .head { font-weight:700; color:#0f172a; background:transparent; text-align:center; }
+  /* activity styles */
+  .act-class { background:var(--pastel-blue); color:#04203a; box-shadow:0 2px 6px rgba(3,7,18,0.04); }
+  .act-study { background:var(--pastel-green); color:#08320f; }
+  .act-gym   { background:var(--pastel-pink); color:#3d0714; }
+  .act-meal  { background:var(--pastel-yellow); color:#53400a; }
+  .act-chill { background:var(--pastel-lavender); color:#2c1138; }
+  .act-prep  { background:#f5f7fa; color:var(--muted); border:1px solid #e6edf3; }
+
+  /* tooltip */
+  .activity { position:relative; cursor:pointer; border-radius:8px; padding:10px; width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; }
+  .activity:focus { outline:3px solid rgba(96,165,250,0.28); }
+  .tooltip {
+    position:absolute; left:50%; top:-8px; transform:translate(-50%,-100%); background:#0f172a; color:#fff; padding:6px 8px; border-radius:6px; font-size:12px; white-space:nowrap; display:none;
+  }
+  .activity:hover .tooltip, .activity:focus .tooltip { display:block; }
+
+  /* print tweak */
+  @media print{
+    .no-print{ display:none !important; }
+    .schedule-grid{ box-shadow:none; }
+    .activity { box-shadow:none; }
+  }
+
+  /* responsive */
+  @media (max-width:900px){
+    .schedule-grid{ grid-template-columns: 80px repeat(7, minmax(120px,1fr)); }
+    :root{ --hour-height:56px; }
+  }
+</style>
 </head>
-<body class="bg-slate-100 p-4 sm:p-8">
-
-    <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-lg p-6 sm:p-10 printable-content">
-        <!-- Header -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-            <div>
-                <h1 class="text-3xl font-bold text-slate-800">My Weekly Schedule</h1>
-                <p class="text-slate-500 mt-1">A visual overview of your weekly commitments and goals.</p>
-            </div>
-            <button onclick="window.print()" class="no-print mt-4 sm:mt-0 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
-                Print / Save as PDF
-            </button>
-        </div>
-
-        <!-- Color Key -->
-        <div class="flex flex-wrap gap-x-4 gap-y-2 mb-6 text-sm text-slate-600">
-            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-sky-100"></span> Class</div>
-            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-emerald-100"></span> Study/Work</div>
-            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-amber-100"></span> Meal/Break</div>
-            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-orange-100"></span> Gym</div>
-            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-violet-100"></span> Chill/Hobby</div>
-            <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-slate-100"></span> Prep/Admin</div>
-        </div>
-
-        <!-- Schedule Table -->
-        <div class="overflow-x-auto">
-            <table class="w-full border-collapse text-center">
-                <thead>
-                    <tr>
-                        <th class="w-24 p-3 border-b-2 border-slate-200 bg-slate-50 text-slate-600 font-semibold text-sm">Time</th>
-                        <th class="p-3 border-b-2 border-slate-200 bg-slate-50 text-slate-600 font-semibold text-sm">Monday</th>
-                        <th class="p-3 border-b-2 border-slate-200 bg-slate-50 text-slate-600 font-semibold text-sm">Tuesday</th>
-                        <th class="p-3 border-b-2 border-slate-200 bg-slate-50 text-slate-600 font-semibold text-sm">Wednesday</th>
-                        <th class="p-3 border-b-2 border-slate-200 bg-slate-50 text-slate-600 font-semibold text-sm">Thursday</th>
-                        <th class="p-3 border-b-2 border-slate-200 bg-slate-50 text-slate-600 font-semibold text-sm">Friday</th>
-                        <th class="p-3 border-b-2 border-slate-200 bg-slate-50 text-slate-600 font-semibold text-sm">Saturday</th>
-                        <th class="p-3 border-b-2 border-slate-200 bg-slate-50 text-slate-600 font-semibold text-sm">Sunday</th>
-                    </tr>
-                </thead>
-                <tbody class="text-sm">
-                    <!-- This structure uses an empty cell for each 30-min slot. rowspan is used to merge cells for activities. -->
-                    <!-- This is a simplified representation. The actual table would have a <tr> for every 30-minute interval. -->
-                    
-                    <!-- 07:00 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">07:00</td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td rowspan="1" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Quick breakfast</div></td>
-                        <td rowspan="1" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Breakfast</div></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                    </tr>
-                    <!-- 07:30 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">07:30</td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Breakfast</div></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td rowspan="1" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Breakfast</div></td>
-                        <td class="p-1 border border-slate-200"></td>
-                    </tr>
-                    <!-- 08:00 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">08:00</td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Breakfast + light review</div></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td rowspan="6" class="p-1 border border-slate-200 bg-sky-100"><div class="activity font-semibold">Class (MSC 3401)</div></td>
-                        <td rowspan="6" class="p-1 border border-slate-200 bg-sky-100"><div class="activity font-semibold">Class (IF 350)</div></td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-sky-100"><div class="activity font-semibold">Class (IF 351 - Lecture)</div></td>
-                        <td class="p-1 border border-slate-200"></td>
-                    </tr>
-                    <!-- 08:30 -->
-                    <tr><td class="p-2 border border-slate-200 font-medium text-slate-500">08:30</td><td class="p-1 border border-slate-200"></td><td class="p-1 border border-slate-200"></td><td class="p-1 border border-slate-200"></td></tr>
-                    <!-- 09:00 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">09:00</td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-emerald-100"><div class="activity">Study block</div></td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-sky-100"><div class="activity font-semibold">Class (UM 142)</div></td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Breakfast</div></td>
-                    </tr>
-                    <!-- 09:30 -->
-                    <tr><td class="p-2 border border-slate-200 font-medium text-slate-500">09:30</td></tr>
-                    <!-- 10:00 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">10:00</td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-emerald-100"><div class="activity">Focused study</div></td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-sky-100"><div class="activity font-semibold">Class (IF 351 - Lab)</div></td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-emerald-100"><div class="activity">Light study</div></td>
-                    </tr>
-                    <!-- 10:30 -->
-                    <tr><td class="p-2 border border-slate-200 font-medium text-slate-500">10:30</td></tr>
-                    <!-- 11:00 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">11:00</td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Break / light reading</div></td>
-                        <td rowspan="3" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Lunch + light review</div></td>
-                        <td rowspan="6" class="p-1 border border-slate-200 bg-sky-100"><div class="activity font-semibold">Class (IF 333)</div></td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Break + snack</div></td>
-                    </tr>
-                    <!-- 11:30 -->
-                    <tr><td class="p-2 border border-slate-200 font-medium text-slate-500">11:30</td></tr>
-                    <!-- 12:00 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">12:00</td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Lunch</div></td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Lunch</div></td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Lunch</div></td>
-                        <td rowspan="1" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Lunch</div></td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Lunch</div></td>
-                    </tr>
-                    <!-- 12:30 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">12:30</td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-orange-100"><div class="activity">Gym</div></td>
-                    </tr>
-                    <!-- 13:00 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">13:00</td>
-                        <td rowspan="6" class="p-1 border border-slate-200 bg-sky-100"><div class="activity font-semibold">Class (CE 319)</div></td>
-                        <td rowspan="6" class="p-1 border border-slate-200 bg-emerald-100"><div class="activity">Study</div></td>
-                        <td rowspan="6" class="p-1 border border-slate-200 bg-sky-100"><div class="activity font-semibold">Class (IF 440)</div></td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-sky-100"><div class="activity font-semibold">Class (IF 451 - Lecture)</div></td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-violet-100"><div class="activity">Hobby / family / chill</div></td>
-                    </tr>
-                    <!-- 13:30 -->
-                    <tr><td class="p-2 border border-slate-200 font-medium text-slate-500">13:30</td></tr>
-                    <!-- 14:00 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">14:00</td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Lunch</div></td>
-                    </tr>
-                    <!-- 14:30 -->
-                    <tr><td class="p-2 border border-slate-200 font-medium text-slate-500">14:30</td></tr>
-                    <!-- 15:00 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">15:00</td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-emerald-100"><div class="activity">Light review</div></td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-sky-100"><div class="activity font-semibold">Class (IF 451 - Lab)</div></td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-slate-100"><div class="activity">Light review / prep</div></td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-slate-100"><div class="activity">Week prep (organize notes, clothes, goals)</div></td>
-                    </tr>
-                    <!-- 15:30 -->
-                    <tr><td class="p-2 border border-slate-200 font-medium text-slate-500">15:30</td></tr>
-                    <!-- 16:00 -->
-                    <tr><td class="p-2 border border-slate-200 font-medium text-slate-500">16:00</td><td class="p-1 border border-slate-200"></td><td class="p-1 border border-slate-200"></td><td class="p-1 border border-slate-200"></td><td class="p-1 border border-slate-200"></td><td rowspan="10" class="p-1 border border-slate-200 bg-violet-100"><div class="activity">Evening free → Social / hobby day</div></td><td rowspan="12" class="p-1 border border-slate-200 bg-violet-100"><div class="activity">Evening → Relax fully</div></td></tr>
-                    <!-- 16:30 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">16:30</td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-orange-100"><div class="activity">Gym 🏋️</div></td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-orange-100"><div class="activity">Gym</div></td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-orange-100"><div class="activity">Gym</div></td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-orange-100"><div class="activity">Gym</div></td>
-                    </tr>
-                    <!-- 17:00 -->
-                    <tr><td class="p-2 border border-slate-200 font-medium text-slate-500">17:00</td></tr>
-                    <!-- 17:30 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">17:30</td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-orange-100"><div class="activity">Gym</div></td>
-                    </tr>
-                    <!-- 18:00 -->
-                    <tr><td class="p-2 border border-slate-200 font-medium text-slate-500">18:00</td></tr>
-                    <!-- 18:30 -->
-                    <tr><td class="p-2 border border-slate-200 font-medium text-slate-500">18:30</td><td class="p-1 border border-slate-200"></td><td class="p-1 border border-slate-200"></td><td class="p-1 border border-slate-200"></td><td class="p-1 border border-slate-200"></td></tr>
-                    <!-- 19:00 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">19:00</td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Dinner</div></td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Dinner</div></td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Dinner</div></td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-amber-100"><div class="activity">Dinner</div></td>
-                        <td class="p-1 border border-slate-200"></td>
-                    </tr>
-                    <!-- 19:30 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">19:30</td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-emerald-100"><div class="activity">Study/review</div></td>
-                    </tr>
-                    <!-- 20:00 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">20:00</td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-emerald-100"><div class="activity">Study / project work</div></td>
-                        <td rowspan="3" class="p-1 border border-slate-200 bg-emerald-100"><div class="activity">Study/review class notes</div></td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-emerald-100"><div class="activity">Focused study / assignments</div></td>
-                        <td rowspan="4" class="p-1 border border-slate-200 bg-violet-100"><div class="activity">Chill night 🎮</div></td>
-                    </tr>
-                    <!-- 20:30 -->
-                    <tr><td class="p-2 border border-slate-200 font-medium text-slate-500">20:30</td></tr>
-                    <!-- 21:00 -->
-                    <tr><td class="p-2 border border-slate-200 font-medium text-slate-500">21:00</td></tr>
-                    <!-- 21:30 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">21:30</td>
-                        <td rowspan="3" class="p-1 border border-slate-200 bg-violet-100"><div class="activity">Chill</div></td>
-                        <td rowspan="3" class="p-1 border border-slate-200 bg-violet-100"><div class="activity">Hobby time</div></td>
-                    </tr>
-                    <!-- 22:00 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">22:00</td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-violet-100"><div class="activity">Chill / hobby</div></td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-violet-100"><div class="activity">Relax</div></td>
-                        <td class="p-1 border border-slate-200"></td>
-                    </tr>
-                    <!-- 22:30 -->
-                    <tr><td class="p-2 border border-slate-200 font-medium text-slate-500">22:30</td></tr>
-                    <!-- 23:00 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">23:00</td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                    </tr>
-                    <!-- 23:30 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">23:30</td>
-                        <td rowspan="2" class="p-1 border border-slate-200 bg-slate-100"><div class="activity">Wind down & sleep prep</div></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                    </tr>
-                     <!-- 00:00 -->
-                    <tr>
-                        <td class="p-2 border border-slate-200 font-medium text-slate-500">00:00</td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                        <td class="p-1 border border-slate-200"></td>
-                    </tr>
-
-                </tbody>
-            </table>
-        </div>
+<body>
+  <div class="board">
+    <div class="flex justify-between items-start mb-4">
+      <div>
+        <h1 class="text-2xl font-bold">Weekly Schedule — Hourly</h1>
+        <p class="text-sm text-slate-500 mt-1">07:00 — 00:00 • Hourly blocks for readability</p>
+      </div>
+      <div class="flex gap-2 no-print">
+        <button onclick="window.print()" class="px-3 py-2 bg-blue-600 text-white rounded-md">Print / Save PDF</button>
+      </div>
     </div>
 
+    <!-- Legend -->
+    <div class="flex flex-wrap gap-3 text-sm mb-4">
+      <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-[var(--pastel-blue)]"></span> Class</div>
+      <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-[var(--pastel-green)]"></span> Study</div>
+      <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-[var(--pastel-yellow)]"></span> Meal</div>
+      <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-[var(--pastel-pink)]"></span> Gym</div>
+      <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-[var(--pastel-lavender)]"></span> Chill</div>
+    </div>
+
+    <div class="grid-wrap">
+      <div id="grid" class="schedule-grid" role="table" aria-label="Weekly schedule grid">
+        <!-- Header row (time + days) -->
+        <div class="cell head" role="columnheader">Time</div>
+        <div class="cell head" role="columnheader">Monday</div>
+        <div class="cell head" role="columnheader">Tuesday</div>
+        <div class="cell head" role="columnheader">Wednesday</div>
+        <div class="cell head" role="columnheader">Thursday</div>
+        <div class="cell head" role="columnheader">Friday</div>
+        <div class="cell head" role="columnheader">Saturday</div>
+        <div class="cell head" role="columnheader">Sunday</div>
+        <!-- Time rows and placeholders will be injected by JS -->
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ---------- Data: change this object to update the schedule ---------- */
+const schedule = {
+  Monday: [
+    ["08:00","10:00","Breakfast + light review","study"],
+    ["10:00","12:00","Focused study","study"],
+    ["12:00","13:00","Lunch","meal"],
+    ["13:00","16:00","CE 319 - Class","class"],
+    ["16:30","18:30","Gym","gym"],
+    ["19:00","20:00","Dinner","meal"],
+    ["20:00","22:00","Study / project work","study"],
+    ["22:00","23:00","Chill / hobby","chill"],
+    ["23:30","00:30","Wind down & sleep prep","prep"]
+  ],
+  Tuesday: [
+    ["08:00","09:00","Breakfast + plan the day","meal"],
+    ["09:00","11:00","Study block","study"],
+    ["11:00","12:00","Break / light reading","prep"],
+    ["12:00","13:00","Lunch","meal"],
+    ["13:00","16:00","Study","study"],
+    ["16:30","18:30","Gym","gym"],
+    ["19:00","20:00","Dinner","meal"],
+    ["20:00","21:30","Study/review class notes","study"],
+    ["21:30","23:00","Chill","chill"]
+  ],
+  Wednesday: [
+    ["07:30","08:30","Breakfast","meal"],
+    ["09:00","11:00","UM 142 - Class","class"],
+    ["11:00","12:30","Lunch + light review","meal"],
+    ["13:00","16:00","IF 440 - Class","class"],
+    ["16:30","18:30","Gym","gym"],
+    ["19:00","20:00","Dinner","meal"],
+    ["20:00","22:00","Focused study / assignments","study"],
+    ["22:00","23:00","Relax","chill"]
+  ],
+  Thursday: [
+    ["07:00","07:30","Quick breakfast","meal"],
+    ["08:00","11:00","MSC 3401 - Class","class"],
+    ["11:00","14:00","IF 333 - Class","class"],
+    ["14:00","15:00","Lunch","meal"],
+    ["15:00","16:00","Light review","study"],
+    ["16:30","18:30","Gym","gym"],
+    ["19:00","20:00","Dinner","meal"],
+    ["19:30","21:30","Study/review","study"],
+    ["21:30","23:00","Hobby time","chill"]
+  ],
+  Friday: [
+    ["07:00","07:30","Breakfast","meal"],
+    ["08:00","11:00","IF 350 - Class","class"],
+    ["11:00","12:00","Break + snack","prep"],
+    ["12:00","13:00","Lunch","meal"],
+    ["13:00","15:00","IF 451 - Lecture","class"],
+    ["15:00","17:00","IF 451 - Lab","class"],
+    ["17:30","19:30","Gym","gym"],
+    ["20:00","22:00","Chill Night","chill"]
+  ],
+  Saturday: [
+    ["07:30","08:00","Breakfast","meal"],
+    ["08:00","10:00","IF 351 - Lecture","class"],
+    ["10:00","12:00","IF 351 - Lab","class"],
+    ["12:00","12:30","Lunch","meal"],
+    ["12:30","14:30","Gym","gym"],
+    ["15:00","16:00","Light review / prep","prep"],
+    ["18:00","23:59","Evening free","chill"]
+  ],
+  Sunday: [
+    ["09:00","10:00","Breakfast","meal"],
+    ["10:00","12:00","Light study","study"],
+    ["12:00","13:00","Lunch","meal"],
+    ["13:00","15:00","Hobby / family / chill","chill"],
+    ["15:00","16:00","Week prep (organize notes, clothes, goals)","prep"],
+    ["16:00","18:00","Free / Relax","chill"]
+  ]
+};
+
+/* ---------- Helpers ---------- */
+const hours = [];
+for (let h=7; h<=24; h++){ // 07:00 to 24:00 (midnight)
+  const hh = String(h%24).padStart(2,'0');
+  const next = String((h+1)%24).padStart(2,'0');
+  hours.push(`${hh}:00–${next}:00`);
+}
+
+function toMinutes(t){
+  // accepts "HH:MM" or "HH:MM" | if "23:59", treat as 24:00
+  const [hh,mm] = t.split(':').map(x=>parseInt(x,10));
+  return hh*60 + mm;
+}
+
+function addGridCells(){
+  const grid = document.getElementById('grid');
+
+  // inject time column (rows)
+  for (let r=0; r<hours.length; r++){
+    const timeLabel = document.createElement('div');
+    timeLabel.className = 'cell time-cell';
+    timeLabel.style.gridColumn = '1';
+    timeLabel.style.gridRow = `${r+2}`; // +2 because header row is 1
+    timeLabel.innerText = hours[r];
+    grid.appendChild(timeLabel);
+  }
+
+  // add empty placeholders for each day-hour cell (so layout stays consistent)
+  const dayCount = Object.keys(schedule).length;
+  for (let c=0; c<7; c++){
+    for (let r=0; r<hours.length; r++){
+      const ph = document.createElement('div');
+      ph.className = 'cell';
+      ph.style.gridColumn = `${2 + c}`;
+      ph.style.gridRow = `${r+2}`;
+      ph.setAttribute('aria-hidden','true');
+      grid.appendChild(ph);
+    }
+  }
+
+  // place activity blocks by computing grid-row span
+  const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  dayNames.forEach((dayName, dayIndex)=>{
+    const blocks = schedule[dayName] || [];
+    blocks.forEach(([start,end,title,type])=>{
+      let startMin = toMinutes(start);
+      let endMin = (end === '23:59') ? 24*60 : toMinutes(end);
+      // handle cases end <= start (past-midnight)
+      if (endMin <= startMin) endMin += 24*60;
+
+      // compute row indices: each grid row = 60 minutes; header row is 1; row 2 is 07:00–08:00
+      const startRow = Math.floor(startMin/60) - 7 + 2; // +2 offset header and 07:00 row index
+      const endRow = Math.ceil(endMin/60) - 7 + 1; // inclusive end
+      const rowSpanStart = Math.max(2, startRow);
+      const rowSpanEnd = Math.min(1 + hours.length, endRow);
+
+      const block = document.createElement('div');
+      block.className = 'cell';
+      const cls = type==='class' ? 'act-class' : type==='study' ? 'act-study' : type==='gym' ? 'act-gym' : type==='meal' ? 'act-meal' : type==='chill' ? 'act-chill' : 'act-prep';
+      block.classList.add('activity', cls);
+      block.setAttribute('tabindex','0');
+      block.style.gridColumn = `${2 + dayIndex}`;
+      block.style.gridRow = `${rowSpanStart} / ${rowSpanEnd + 1}`; // css grid row-end is exclusive
+      block.innerHTML = `<div style="font-weight:700; font-size:13px">${title}</div>
+                         <div style="font-size:12px; color:rgba(15,23,42,0.65)">${start} — ${end}</div>
+                         <div class="tooltip" role="tooltip"> ${title} • ${start}–${end} </div>`;
+      grid.appendChild(block);
+    });
+  });
+
+}
+
+document.addEventListener('DOMContentLoaded', addGridCells);
+</script>
 </body>
 </html>
