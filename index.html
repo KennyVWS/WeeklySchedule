@@ -5,6 +5,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Weekly Schedule — Hourly Grid</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          'primary': '#4361ee',
+          'secondary': '#3f37c9',
+          'accent': '#4895ef',
+          'light': '#f8f9fa',
+          'dark': '#212529'
+        }
+      }
+    }
+  }
+</script>
 <style>
   :root{
     --bg: #f8fafc;
@@ -28,6 +44,12 @@
     gap:6px;
     align-items:stretch;
   }
+  .daily-view {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    grid-template-rows: 56px repeat(17, var(--hour-height));
+    gap: 6px;
+  }
   .cell {
     border-radius:8px;
     padding:8px;
@@ -36,6 +58,7 @@
     align-items:center;
     justify-content:center;
     text-align:center;
+    transition: all 0.2s ease;
   }
   .time-cell { color:var(--muted); font-weight:600; background:transparent; justify-content:flex-start; padding-left:12px; }
   .head { font-weight:700; color:#0f172a; background:transparent; text-align:center; }
@@ -52,6 +75,7 @@
   .activity:focus { outline:3px solid rgba(96,165,250,0.28); }
   .tooltip {
     position:absolute; left:50%; top:-8px; transform:translate(-50%,-100%); background:#0f172a; color:#fff; padding:6px 8px; border-radius:6px; font-size:12px; white-space:nowrap; display:none;
+    z-index: 10;
   }
   .activity:hover .tooltip, .activity:focus .tooltip { display:block; }
 
@@ -67,27 +91,180 @@
     .schedule-grid{ grid-template-columns: 80px repeat(7, minmax(120px,1fr)); }
     :root{ --hour-height:56px; }
   }
+
+  /* Modal styles */
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-content {
+    background-color: white;
+    padding: 24px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  }
+
+  /* Current time indicator */
+  .current-time {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: #ff3b30;
+    z-index: 5;
+    pointer-events: none;
+  }
+  .current-time::before {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: #ff3b30;
+    border-radius: 50%;
+    top: -4px;
+    left: -5px;
+  }
+
+  /* Color picker styles */
+  .color-option {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+    cursor: pointer;
+    border: 2px solid transparent;
+  }
+  .color-option.active {
+    border-color: #333;
+  }
+
+  /* Loading animation */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .activity {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  /* Highlight current day */
+  .current-day {
+    background-color: rgba(67, 97, 238, 0.05);
+    position: relative;
+  }
+  .current-day::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 3px;
+    background-color: #4361ee;
+    border-radius: 3px;
+  }
+
+  /* Daily view styles */
+  .daily-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #f1f5f9;
+    border-radius: 8px;
+  }
+  .day-nav {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .day-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
 </style>
 </head>
-<body>
+<body class="bg-gray-50">
   <div class="board">
-    <div class="flex justify-between items-start mb-4">
+    <div class="flex justify-between items-start mb-6">
       <div>
-        <h1 class="text-2xl font-bold">Weekly Schedule — Hourly</h1>
-        <p class="text-sm text-slate-500 mt-1">07:00 — 00:00 • Hourly blocks for readability</p>
+        <h1 class="text-2xl font-bold text-gray-800 flex items-center">
+          <i class="fas fa-calendar-week mr-3 text-primary"></i>
+          <span id="view-title">Weekly Schedule — Hourly</span>
+        </h1>
+        <p class="text-sm text-slate-500 mt-1 flex items-center">
+          <i class="fas fa-clock mr-1"></i>
+          07:00 — 00:00 • Hourly blocks for readability
+          <span id="current-date" class="ml-3 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs"></span>
+        </p>
       </div>
       <div class="flex gap-2 no-print">
-        <button onclick="window.print()" class="px-3 py-2 bg-blue-600 text-white rounded-md">Print / Save PDF</button>
+        <button id="add-event-btn" class="px-4 py-2 bg-green-500 text-white rounded-md flex items-center hover:bg-green-600 transition-colors">
+          <i class="fas fa-plus mr-2"></i> Add Event
+        </button>
+        <button id="toggle-view-btn" class="px-4 py-2 bg-purple-500 text-white rounded-md flex items-center hover:bg-purple-600 transition-colors">
+          <i class="fas fa-exchange-alt mr-2"></i> Daily View
+        </button>
+        <button onclick="window.print()" class="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center hover:bg-blue-700 transition-colors">
+          <i class="fas fa-print mr-2"></i> Print / Save PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- Daily View Header (initially hidden) -->
+    <div id="daily-header" class="daily-header no-print" style="display: none;">
+      <div class="day-nav">
+        <button id="prev-day" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <h2 id="current-day-title" class="day-title">Monday</h2>
+        <button id="next-day" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+      <div class="text-sm text-gray-500">
+        <span id="daily-date"></span>
       </div>
     </div>
 
     <!-- Legend -->
-    <div class="flex flex-wrap gap-3 text-sm mb-4">
+    <div class="flex flex-wrap gap-3 text-sm mb-6 p-3 bg-gray-50 rounded-lg">
       <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-[var(--pastel-blue)]"></span> Class</div>
       <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-[var(--pastel-green)]"></span> Study</div>
       <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-[var(--pastel-yellow)]"></span> Meal</div>
       <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-[var(--pastel-pink)]"></span> Gym</div>
       <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-[var(--pastel-lavender)]"></span> Chill</div>
+      <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-full bg-[#f5f7fa] border border-gray-300"></span> Prep</div>
+    </div>
+
+    <!-- Search and filter -->
+    <div class="mb-4 flex gap-3 no-print">
+      <div class="relative flex-1">
+        <input type="text" id="search-input" placeholder="Search activities..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+      </div>
+      <select id="activity-filter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        <option value="all">All Activities</option>
+        <option value="class">Class</option>
+        <option value="study">Study</option>
+        <option value="meal">Meal</option>
+        <option value="gym">Gym</option>
+        <option value="chill">Chill</option>
+        <option value="prep">Prep</option>
+      </select>
     </div>
 
     <div class="grid-wrap">
@@ -104,11 +281,80 @@
         <!-- Time rows and placeholders will be injected by JS -->
       </div>
     </div>
+
+    <!-- Statistics -->
+    <div class="mt-6 p-4 bg-gray-50 rounded-lg no-print">
+      <h3 class="font-medium text-gray-700 mb-3 flex items-center">
+        <i class="fas fa-chart-pie mr-2 text-primary"></i>
+        Weekly Statistics
+      </h3>
+      <div id="stats-container" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <!-- Stats will be populated by JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Event Modal -->
+  <div id="event-modal" class="modal">
+    <div class="modal-content">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold" id="modal-title">Add New Event</h3>
+        <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="event-form" class="space-y-4">
+        <input type="hidden" id="edit-index" value="-1">
+        <div>
+          <label for="event-day" class="block text-sm font-medium text-gray-700 mb-1">Day</label>
+          <select id="event-day" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="Monday">Monday</option>
+            <option value="Tuesday">Tuesday</option>
+            <option value="Wednesday">Wednesday</option>
+            <option value="Thursday">Thursday</option>
+            <option value="Friday">Friday</option>
+            <option value="Saturday">Saturday</option>
+            <option value="Sunday">Sunday</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="event-start" class="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+            <input type="time" id="event-start" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          </div>
+          <div>
+            <label for="event-end" class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+            <input type="time" id="event-end" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          </div>
+        </div>
+        <div>
+          <label for="event-title" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+          <input type="text" id="event-title" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Activity Type</label>
+          <div class="flex flex-wrap gap-2">
+            <div class="color-option active bg-[var(--pastel-blue)]" data-type="class" title="Class"></div>
+            <div class="color-option bg-[var(--pastel-green)]" data-type="study" title="Study"></div>
+            <div class="color-option bg-[var(--pastel-yellow)]" data-type="meal" title="Meal"></div>
+            <div class="color-option bg-[var(--pastel-pink)]" data-type="gym" title="Gym"></div>
+            <div class="color-option bg-[var(--pastel-lavender)]" data-type="chill" title="Chill"></div>
+            <div class="color-option bg-[#f5f7fa] border border-gray-300" data-type="prep" title="Prep"></div>
+          </div>
+          <input type="hidden" id="event-type" value="class">
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
+          <button type="button" id="delete-btn" class="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 hidden">Delete</button>
+          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Save Event</button>
+        </div>
+      </form>
+    </div>
   </div>
 
 <script>
 /* ---------- Data: change this object to update the schedule ---------- */
-const schedule = {
+let schedule = {
   Monday: [
     ["08:00","10:00","Breakfast + light review","study"],
     ["10:00","12:00","Focused study","study"],
@@ -181,6 +427,24 @@ const schedule = {
   ]
 };
 
+// View state
+let currentView = 'weekly'; // 'weekly' or 'daily'
+let currentDayIndex = new Date().getDay() - 1; // 0-6 for Monday-Sunday
+if (currentDayIndex < 0) currentDayIndex = 6; // Sunday
+
+// Load schedule from localStorage if available
+function loadSchedule() {
+  const savedSchedule = localStorage.getItem('weeklySchedule');
+  if (savedSchedule) {
+    schedule = JSON.parse(savedSchedule);
+  }
+}
+
+// Save schedule to localStorage
+function saveSchedule() {
+  localStorage.setItem('weeklySchedule', JSON.stringify(schedule));
+}
+
 /* ---------- Helpers ---------- */
 const hours = [];
 for (let h=7; h<=24; h++){ // 07:00 to 24:00 (midnight)
@@ -195,45 +459,418 @@ function toMinutes(t){
   return hh*60 + mm;
 }
 
-function addGridCells(){
-  const grid = document.getElementById('grid');
+// Set current date
+function setCurrentDate() {
+  const now = new Date();
+  const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  document.getElementById('current-date').textContent = now.toLocaleDateString('en-US', options);
+}
 
-  // inject time column (rows)
-  for (let r=0; r<hours.length; r++){
-    const timeLabel = document.createElement('div');
-    timeLabel.className = 'cell time-cell';
-    timeLabel.style.gridColumn = '1';
-    timeLabel.style.gridRow = `${r+2}`; // +2 because header row is 1
-    timeLabel.innerText = hours[r];
-    grid.appendChild(timeLabel);
+// Highlight current day
+function highlightCurrentDay() {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const today = new Date().getDay();
+  const dayName = days[today];
+  
+  const dayHeaders = document.querySelectorAll('.head');
+  dayHeaders.forEach(header => {
+    if (header.textContent === dayName) {
+      header.classList.add('current-day');
+    }
+  });
+}
+
+// Add current time indicator
+function addCurrentTimeIndicator() {
+  const now = new Date();
+  const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  
+  if (currentMinutes >= 7*60 && currentMinutes <= 24*60) {
+    const dayIndex = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].indexOf(currentDay) + 1;
+    if (dayIndex > 0) {
+      const rowPosition = Math.floor((currentMinutes - 7*60) / 60) + 2;
+      const cell = document.querySelector(`.schedule-grid > div[style*="grid-column: ${dayIndex + 1}"][style*="grid-row: ${rowPosition}"]`);
+      
+      if (cell) {
+        const timeIndicator = document.createElement('div');
+        timeIndicator.className = 'current-time';
+        const offset = ((currentMinutes - 7*60) % 60) / 60 * 100;
+        timeIndicator.style.top = `${offset}%`;
+        cell.appendChild(timeIndicator);
+      }
+    }
+  }
+}
+
+// Calculate and display statistics
+function calculateStatistics() {
+  const stats = {
+    class: 0,
+    study: 0,
+    meal: 0,
+    gym: 0,
+    chill: 0,
+    prep: 0
+  };
+  
+  // Calculate hours per activity type
+  Object.values(schedule).forEach(day => {
+    day.forEach(activity => {
+      const start = toMinutes(activity[0]);
+      let end = toMinutes(activity[1]);
+      if (end < start) end += 24*60; // Handle overnight activities
+      const duration = (end - start) / 60;
+      stats[activity[3]] += duration;
+    });
+  });
+  
+  // Calculate total hours
+  const totalHours = Object.values(stats).reduce((sum, val) => sum + val, 0);
+  
+  // Update stats container
+  const statsContainer = document.getElementById('stats-container');
+  statsContainer.innerHTML = `
+    <div class="bg-white p-3 rounded-lg shadow-sm">
+      <div class="text-sm text-gray-500">Total Hours</div>
+      <div class="text-2xl font-bold text-primary">${totalHours.toFixed(1)}</div>
+    </div>
+    <div class="bg-white p-3 rounded-lg shadow-sm">
+      <div class="text-sm text-gray-500">Class Hours</div>
+      <div class="text-2xl font-bold text-blue-600">${stats.class.toFixed(1)}</div>
+    </div>
+    <div class="bg-white p-3 rounded-lg shadow-sm">
+      <div class="text-sm text-gray-500">Study Hours</div>
+      <div class="text-2xl font-bold text-green-600">${stats.study.toFixed(1)}</div>
+    </div>
+    <div class="bg-white p-3 rounded-lg shadow-sm">
+      <div class="text-sm text-gray-500">Free Time</div>
+      <div class="text-2xl font-bold text-purple-600">${stats.chill.toFixed(1)}</div>
+    </div>
+  `;
+}
+
+// Modal functions
+function openModal(day = null, index = -1) {
+  const modal = document.getElementById('event-modal');
+  const modalTitle = document.getElementById('modal-title');
+  const deleteBtn = document.getElementById('delete-btn');
+  const daySelect = document.getElementById('event-day');
+  const form = document.getElementById('event-form');
+  
+  if (day) {
+    daySelect.value = day;
+  }
+  
+  if (index >= 0) {
+    // Edit mode
+    modalTitle.textContent = 'Edit Event';
+    deleteBtn.classList.remove('hidden');
+    
+    const activity = schedule[day][index];
+    document.getElementById('event-start').value = activity[0];
+    document.getElementById('event-end').value = activity[1];
+    document.getElementById('event-title').value = activity[2];
+    document.getElementById('event-type').value = activity[3];
+    document.getElementById('edit-index').value = `${day},${index}`;
+    
+    // Set active color option
+    document.querySelectorAll('.color-option').forEach(option => {
+      option.classList.remove('active');
+      if (option.dataset.type === activity[3]) {
+        option.classList.add('active');
+      }
+    });
+  } else {
+    // Add mode
+    modalTitle.textContent = 'Add New Event';
+    deleteBtn.classList.add('hidden');
+    form.reset();
+    document.getElementById('edit-index').value = '-1';
+  }
+  
+  modal.style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('event-modal').style.display = 'none';
+}
+
+function handleFormSubmit(e) {
+  e.preventDefault();
+  
+  const day = document.getElementById('event-day').value;
+  const start = document.getElementById('event-start').value;
+  const end = document.getElementById('event-end').value;
+  const title = document.getElementById('event-title').value;
+  const type = document.getElementById('event-type').value;
+  const editIndex = document.getElementById('edit-index').value;
+  
+  const newActivity = [start, end, title, type];
+  
+  if (editIndex !== '-1') {
+    // Editing existing activity
+    const [editDay, index] = editIndex.split(',');
+    schedule[editDay][index] = newActivity;
+  } else {
+    // Adding new activity
+    if (!schedule[day]) schedule[day] = [];
+    schedule[day].push(newActivity);
+    schedule[day].sort((a, b) => toMinutes(a[0]) - toMinutes(b[0]));
+  }
+  
+  saveSchedule();
+  renderSchedule();
+  closeModal();
+}
+
+function deleteActivity() {
+  const editIndex = document.getElementById('edit-index').value;
+  
+  if (editIndex !== '-1') {
+    const [day, index] = editIndex.split(',');
+    schedule[day].splice(index, 1);
+    
+    saveSchedule();
+    renderSchedule();
+    closeModal();
+  }
+}
+
+// Color option selection
+function setupColorOptions() {
+  document.querySelectorAll('.color-option').forEach(option => {
+    option.addEventListener('click', () => {
+      document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('active'));
+      option.classList.add('active');
+      document.getElementById('event-type').value = option.dataset.type;
+    });
+  });
+}
+
+// Search and filter functionality
+function setupSearchAndFilter() {
+  const searchInput = document.getElementById('search-input');
+  const activityFilter = document.getElementById('activity-filter');
+  
+  searchInput.addEventListener('input', applyFilters);
+  activityFilter.addEventListener('change', applyFilters);
+}
+
+function applyFilters() {
+  const searchText = document.getElementById('search-input').value.toLowerCase();
+  const filterValue = document.getElementById('activity-filter').value;
+  
+  document.querySelectorAll('.activity').forEach(activity => {
+    const title = activity.querySelector('div:first-child').textContent.toLowerCase();
+    const type = activity.className.includes('act-') ? 
+                 activity.className.match(/act-(\w+)/)[1] : '';
+    
+    const matchesSearch = searchText === '' || title.includes(searchText);
+    const matchesFilter = filterValue === 'all' || type === filterValue;
+    
+    if (matchesSearch && matchesFilter) {
+      activity.parentElement.style.display = 'flex';
+    } else {
+      activity.parentElement.style.display = 'none';
+    }
+  });
+}
+
+// Toggle between weekly and daily view
+function toggleView() {
+  currentView = currentView === 'weekly' ? 'daily' : 'weekly';
+  
+  const toggleBtn = document.getElementById('toggle-view-btn');
+  const viewTitle = document.getElementById('view-title');
+  const dailyHeader = document.getElementById('daily-header');
+  const legend = document.querySelector('.flex-wrap');
+  const searchFilter = document.querySelector('.mb-4');
+  const stats = document.querySelector('.mt-6');
+  
+  if (currentView === 'daily') {
+    toggleBtn.innerHTML = '<i class="fas fa-exchange-alt mr-2"></i> Weekly View';
+    viewTitle.textContent = 'Daily Schedule — Hourly';
+    dailyHeader.style.display = 'flex';
+    // Hide legend, search/filter, and stats in daily view for more space
+    legend.style.display = 'none';
+    searchFilter.style.display = 'none';
+    stats.style.display = 'none';
+  } else {
+    toggleBtn.innerHTML = '<i class="fas fa-exchange-alt mr-2"></i> Daily View';
+    viewTitle.textContent = 'Weekly Schedule — Hourly';
+    dailyHeader.style.display = 'none';
+    legend.style.display = 'flex';
+    searchFilter.style.display = 'flex';
+    stats.style.display = 'block';
+  }
+  
+  renderSchedule();
+}
+
+// Navigate between days in daily view
+function navigateDay(direction) {
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  
+  if (direction === 'next') {
+    currentDayIndex = (currentDayIndex + 1) % 7;
+  } else {
+    currentDayIndex = (currentDayIndex - 1 + 7) % 7;
+  }
+  
+  renderSchedule();
+}
+
+// Setup event listeners
+function setupEventListeners() {
+  document.getElementById('add-event-btn').addEventListener('click', () => openModal());
+  document.getElementById('event-form').addEventListener('submit', handleFormSubmit);
+  document.getElementById('delete-btn').addEventListener('click', deleteActivity);
+  document.getElementById('toggle-view-btn').addEventListener('click', toggleView);
+  document.getElementById('prev-day').addEventListener('click', () => navigateDay('prev'));
+  document.getElementById('next-day').addEventListener('click', () => navigateDay('next'));
+  
+  // Close modal when clicking outside
+  window.addEventListener('click', (e) => {
+    const modal = document.getElementById('event-modal');
+    if (e.target === modal) {
+      closeModal();
+    }
+  });
+}
+
+// Render the schedule grid
+function renderSchedule() {
+  const grid = document.getElementById('grid');
+  // Clear existing grid content except headers
+  while (grid.children.length > 8) {
+    grid.removeChild(grid.lastChild);
   }
 
-  // add empty placeholders for each day-hour cell (so layout stays consistent)
-  const dayCount = Object.keys(schedule).length;
-  for (let c=0; c<7; c++){
+  // Remove any existing daily view classes
+  grid.classList.remove('daily-view');
+  grid.classList.add('schedule-grid');
+
+  if (currentView === 'weekly') {
+    // Render weekly view
+    grid.style.gridTemplateColumns = '120px repeat(7, minmax(140px, 1fr))';
+    
+    // inject time column (rows)
+    for (let r=0; r<hours.length; r++){
+      const timeLabel = document.createElement('div');
+      timeLabel.className = 'cell time-cell';
+      timeLabel.style.gridColumn = '1';
+      timeLabel.style.gridRow = `${r+2}`; // +2 because header row is 1
+      timeLabel.innerText = hours[r];
+      grid.appendChild(timeLabel);
+    }
+
+    // add empty placeholders for each day-hour cell (so layout stays consistent)
+    const dayCount = Object.keys(schedule).length;
+    for (let c=0; c<7; c++){
+      for (let r=0; r<hours.length; r++){
+        const ph = document.createElement('div');
+        ph.className = 'cell';
+        ph.style.gridColumn = `${2 + c}`;
+        ph.style.gridRow = `${r+2}`;
+        ph.setAttribute('aria-hidden','true');
+        grid.appendChild(ph);
+      }
+    }
+
+    // place activity blocks by computing grid-row span
+    const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    dayNames.forEach((dayName, dayIndex)=>{
+      const blocks = schedule[dayName] || [];
+      blocks.forEach(([start,end,title,type], index)=>{
+        let startMin = toMinutes(start);
+        let endMin = (end === '23:59') ? 24*60 : toMinutes(end);
+        // handle cases end <= start (past-midnight)
+        if (endMin <= startMin) endMin += 24*60;
+
+        // compute row indices: each grid row = 60 minutes; header row is 1; row 2 is 07:00–08:00
+        const startRow = Math.floor(startMin/60) - 7 + 2; // +2 offset header and 07:00 row index
+        const endRow = Math.ceil(endMin/60) - 7 + 1; // inclusive end
+        const rowSpanStart = Math.max(2, startRow);
+        const rowSpanEnd = Math.min(1 + hours.length, endRow);
+
+        const block = document.createElement('div');
+        block.className = 'cell';
+        const cls = type==='class' ? 'act-class' : type==='study' ? 'act-study' : type==='gym' ? 'act-gym' : type==='meal' ? 'act-meal' : type==='chill' ? 'act-chill' : 'act-prep';
+        block.classList.add('activity', cls);
+        block.setAttribute('tabindex','0');
+        block.setAttribute('data-type', type);
+        block.style.gridColumn = `${2 + dayIndex}`;
+        block.style.gridRow = `${rowSpanStart} / ${rowSpanEnd + 1}`; // css grid row-end is exclusive
+        block.innerHTML = `<div style="font-weight:700; font-size:13px">${title}</div>
+                           <div style="font-size:12px; color:rgba(15,23,42,0.65)">${start} — ${end}</div>
+                           <div class="tooltip" role="tooltip"> ${title} • ${start}–${end} </div>`;
+        
+        // Add click event to edit activity
+        block.addEventListener('click', () => openModal(dayName, index));
+        grid.appendChild(block);
+      });
+    });
+    
+    // Add current time indicator
+    addCurrentTimeIndicator();
+    
+    // Calculate statistics
+    calculateStatistics();
+  } else {
+    // Render daily view
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const dayName = days[currentDayIndex];
+    
+    // Update daily header
+    document.getElementById('current-day-title').textContent = dayName;
+    
+    // Set up grid for daily view
+    grid.style.gridTemplateColumns = '120px 1fr';
+    grid.classList.remove('schedule-grid');
+    grid.classList.add('daily-view');
+    
+    // Hide all day headers except the first one (Time)
+    const headers = document.querySelectorAll('.head');
+    for (let i = 1; i < headers.length; i++) {
+      headers[i].style.display = 'none';
+    }
+    
+    // Show only the current day header
+    headers[currentDayIndex + 1].style.display = 'flex';
+    headers[currentDayIndex + 1].style.gridColumn = '2';
+    
+    // inject time column (rows)
+    for (let r=0; r<hours.length; r++){
+      const timeLabel = document.createElement('div');
+      timeLabel.className = 'cell time-cell';
+      timeLabel.style.gridColumn = '1';
+      timeLabel.style.gridRow = `${r+2}`;
+      timeLabel.innerText = hours[r];
+      grid.appendChild(timeLabel);
+    }
+
+    // add empty placeholders for the day
     for (let r=0; r<hours.length; r++){
       const ph = document.createElement('div');
       ph.className = 'cell';
-      ph.style.gridColumn = `${2 + c}`;
+      ph.style.gridColumn = '2';
       ph.style.gridRow = `${r+2}`;
       ph.setAttribute('aria-hidden','true');
       grid.appendChild(ph);
     }
-  }
 
-  // place activity blocks by computing grid-row span
-  const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-  dayNames.forEach((dayName, dayIndex)=>{
+    // place activity blocks for the selected day
     const blocks = schedule[dayName] || [];
-    blocks.forEach(([start,end,title,type])=>{
+    blocks.forEach(([start,end,title,type], index)=>{
       let startMin = toMinutes(start);
       let endMin = (end === '23:59') ? 24*60 : toMinutes(end);
       // handle cases end <= start (past-midnight)
       if (endMin <= startMin) endMin += 24*60;
 
       // compute row indices: each grid row = 60 minutes; header row is 1; row 2 is 07:00–08:00
-      const startRow = Math.floor(startMin/60) - 7 + 2; // +2 offset header and 07:00 row index
-      const endRow = Math.ceil(endMin/60) - 7 + 1; // inclusive end
+      const startRow = Math.floor(startMin/60) - 7 + 2;
+      const endRow = Math.ceil(endMin/60) - 7 + 1;
       const rowSpanStart = Math.max(2, startRow);
       const rowSpanEnd = Math.min(1 + hours.length, endRow);
 
@@ -242,18 +879,34 @@ function addGridCells(){
       const cls = type==='class' ? 'act-class' : type==='study' ? 'act-study' : type==='gym' ? 'act-gym' : type==='meal' ? 'act-meal' : type==='chill' ? 'act-chill' : 'act-prep';
       block.classList.add('activity', cls);
       block.setAttribute('tabindex','0');
-      block.style.gridColumn = `${2 + dayIndex}`;
-      block.style.gridRow = `${rowSpanStart} / ${rowSpanEnd + 1}`; // css grid row-end is exclusive
+      block.setAttribute('data-type', type);
+      block.style.gridColumn = '2';
+      block.style.gridRow = `${rowSpanStart} / ${rowSpanEnd + 1}`;
       block.innerHTML = `<div style="font-weight:700; font-size:13px">${title}</div>
                          <div style="font-size:12px; color:rgba(15,23,42,0.65)">${start} — ${end}</div>
                          <div class="tooltip" role="tooltip"> ${title} • ${start}–${end} </div>`;
+      
+      // Add click event to edit activity
+      block.addEventListener('click', () => openModal(dayName, index));
       grid.appendChild(block);
     });
-  });
-
+  }
+  
+  // Highlight current day
+  highlightCurrentDay();
 }
 
-document.addEventListener('DOMContentLoaded', addGridCells);
+// Initialize the application
+function initApp() {
+  loadSchedule();
+  setCurrentDate();
+  renderSchedule();
+  setupEventListeners();
+  setupColorOptions();
+  setupSearchAndFilter();
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
 </script>
 </body>
 </html>
